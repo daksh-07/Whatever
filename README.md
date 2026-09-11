@@ -5,7 +5,7 @@ A free, browser-based business simulation playground.
 ## Play
 
 Open `index.html` in a browser, choose a business, and survive 30 days of decisions.
-Or start here (https://whatever-sooty-gamma.vercel.app
+Or start here (https://whatever-sooty-gamma.vercel.app)
 - No account
 - No backend
 - No API key
