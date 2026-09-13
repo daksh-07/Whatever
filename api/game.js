@@ -5,48 +5,82 @@ module.exports = async function handler(req, res) {
     if (!response.ok) throw new Error('Unable to load game source');
     let html = await response.text();
 
-    // Keep the original game source intact, but add an independent boot layer AFTER it.
-    // This is deliberately outside the original IIFE so a failure in the game's startup
-    // code cannot prevent the ENTER button from responding on mobile.
     const boot = `
 <script>
 (function () {
+  var starting = false;
+
   function bootSydney() {
+    if (starting) return;
+    starting = true;
+
+    var enter = document.getElementById('enter');
+
+    // First trigger the game's REAL handler. The previous hotfix only hid the
+    // overlay, which could make the button look dead while leaving play=false.
+    try {
+      if (enter) enter.click();
+    } catch (e) {}
+
     var start = document.getElementById('start');
     if (start) start.classList.add('hide');
     document.documentElement.style.touchAction = 'manipulation';
     document.body.style.touchAction = 'manipulation';
+
     try { localStorage.setItem('sydney-underworld-started', '1'); } catch (e) {}
-    var c = document.getElementById('c');
-    if (c) {
-      c.style.pointerEvents = 'none';
-    }
+
     var toast = document.getElementById('toast');
     if (toast) {
-      toast.textContent = 'Welcome to Sydney. Loading the city…';
+      toast.textContent = 'WELCOME TO SYDNEY — loading the city…';
       toast.classList.remove('hide');
-      setTimeout(function () { toast.classList.add('hide'); }, 2200);
+      setTimeout(function () { toast.classList.add('hide'); }, 1800);
     }
-    // If the main engine is alive, its own loop will take over. Otherwise show a
-    // simple interactive fallback rather than leaving the user trapped on the title screen.
-    try {
-      if (typeof window.__sydneyEngineStarted === 'function') window.__sydneyEngineStarted();
-    } catch (e) {}
+
+    // Give the original game a moment to take over, then allow another tap if
+    // the browser swallowed the first touch event.
+    setTimeout(function () { starting = false; }, 500);
   }
 
   function bind() {
     var enter = document.getElementById('enter');
     if (!enter) return;
+
+    // Make the button explicitly touch-safe on iPhone/iPad.
+    enter.style.pointerEvents = 'auto';
+    enter.style.touchAction = 'manipulation';
+    enter.style.webkitUserSelect = 'none';
+    enter.style.userSelect = 'none';
+
     enter.addEventListener('click', bootSydney, false);
-    enter.addEventListener('pointerup', function (e) { e.preventDefault(); bootSydney(); }, false);
-    enter.addEventListener('touchend', function (e) { e.preventDefault(); bootSydney(); }, { passive: false });
+    enter.addEventListener('pointerup', function (e) {
+      e.preventDefault();
+      bootSydney();
+    }, false);
+    enter.addEventListener('touchend', function (e) {
+      e.preventDefault();
+      bootSydney();
+    }, { passive: false });
+
+    // Capture at document level as a final mobile fallback. This still works
+    // if another transparent element interferes with the normal click target.
+    document.addEventListener('pointerup', function (e) {
+      var target = e.target;
+      if (target && target.closest && target.closest('#enter')) {
+        e.preventDefault();
+        bootSydney();
+      }
+    }, true);
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
-  else bind();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') bootSydney();
-  });
+  }, true);
 })();
 </script>`;
 
