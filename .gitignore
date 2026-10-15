@@ -1,0 +1,11 @@
+# AI toolkit — never commit secrets or scan artifacts
+.env
+.env.*
+*.key
+strix_runs/
+vulnerabilities.json
+findings.sarif
+# runtime / caches (ephemeral, rebuilt by bootstrap)
+.agent-reach-venv/
+node_modules/
+__pycache__/
